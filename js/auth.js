@@ -48,7 +48,10 @@ async function signUpClient({ email, password, name, phone, goal, notes }) {
 }
 
 async function signInClient(email, password) {
-  const { data, error } = await supaSignIn(email, password);
+  const { data, error } = await supaSignUp(email, password);
+
+console.log("SIGNUP DATA:", data);
+console.log("SIGNUP ERROR:", error);
 
   if (error) return { error: 'Incorrect email or password.' };
   if (!data.user) return { error: 'Sign-in failed. Please try again.' };
