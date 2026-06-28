@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Engine Room — Coach</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+</head>
+<body>
+
+<div class="app-layout">
+  <!-- ── Sidebar ──────────────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon" style="background:var(--accent)">
+        <i data-lucide="dumbbell" style="width:18px;height:18px;color:#fff"></i>
+      </div>
+      <div>
+        <div class="sidebar-logo-title">Engine Room</div>
+        <div class="sidebar-logo-sub">Coach Portal</div>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav" id="coach-nav">
+      <button class="nav-link active active-blue" data-section="overview">
+        <i data-lucide="layout-dashboard" style="width:16px;height:16px"></i> Overview
+      </button>
+      <button class="nav-link" data-section="clients">
+        <i data-lucide="users" style="width:16px;height:16px"></i> Clients
+      </button>
+      <button class="nav-link" data-section="plans">
+        <i data-lucide="clipboard-list" style="width:16px;height:16px"></i> Plans
+      </button>
+      <button class="nav-link" data-section="checkins">
+        <i data-lucide="check-square" style="width:16px;height:16px"></i> Check-ins
+      </button>
+      <button class="nav-link" data-section="messages">
+        <i data-lucide="message-square" style="width:16px;height:16px"></i> Messages
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="sign-out-btn" id="coach-signout-btn">
+        <i data-lucide="log-out" style="width:16px;height:16px"></i> Sign Out
+      </button>
+    </div>
+  </aside>
+
+  <!-- ── Main content ──────────────────────────────────────────── -->
+  <main class="main-content">
+
+    <!-- ════════════════════ OVERVIEW ════════════════════════ -->
+    <section class="section active" id="sec-overview">
+      <div class="page-header">
+        <div class="page-header-left">
+          <h1>Overview</h1>
+          <p>Welcome back, Coach! Here's what's happening.</p>
+        </div>
+      </div>
+
+      <div class="stat-grid" id="overview-stats"></div>
+
+      <div class="two-col">
+        <!-- Clients summary -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Clients</span>
+            <button class="link-btn" style="color:var(--accent);font-size:13px" onclick="showSection('clients')">View all →</button>
+          </div>
+          <div id="overview-clients-list"></div>
+        </div>
+        <!-- Recent check-ins -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Recent Check-ins</span>
+            <button class="link-btn" style="color:var(--accent);font-size:13px" onclick="showSection('checkins')">View all →</button>
+          </div>
+          <div id="overview-checkins-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════ CLIENTS LIST ════════════════════ -->
+    <section class="section" id="sec-clients">
+      <div class="page-header">
+        <div class="page-header-left">
+          <h1>Clients</h1>
+          <p id="clients-count-label">0 total clients</p>
+        </div>
+        <button class="btn btn-primary" id="add-client-btn">
+          <i data-lucide="plus" style="width:16px;height:16px"></i> Add Client
+        </button>
+      </div>
+
+      <input type="text" class="search-input" id="clients-search" placeholder="Search clients…" />
+
+      <div id="clients-table-wrap"></div>
+    </section>
+
+    <!-- ════════════════════ CLIENT DETAIL ═══════════════════ -->
+    <section class="section" id="sec-client-detail">
+      <button class="back-link" onclick="showSection('clients')">
+        <i data-lucide="arrow-left" style="width:16px;height:16px"></i> Back to Clients
+      </button>
+
+      <div class="page-header" id="detail-page-header"></div>
+      <div class="card" id="detail-profile-card" style="margin-bottom:24px"></div>
+
+      <div class="tabs" id="detail-tabs">
+        <button class="tab-btn active-blue" data-tab="plans" id="tab-plans-btn">
+          <i data-lucide="dumbbell" style="width:15px;height:15px"></i> Plans
+        </button>
+        <button class="tab-btn" data-tab="checkins" id="tab-checkins-btn">
+          <i data-lucide="check-square" style="width:15px;height:15px"></i> Check-ins
+        </button>
+      </div>
+
+      <div id="detail-plans-content"></div>
+      <div id="detail-checkins-content" style="display:none"></div>
+    </section>
+
+    <!-- ════════════════════ PLANS ═══════════════════════════ -->
+    <section class="section" id="sec-plans">
+      <div class="page-header">
+        <div class="page-header-left">
+          <h1>Plans</h1>
+          <p>All training and nutrition plans across your clients.</p>
+        </div>
+      </div>
+      <div id="all-plans-list"></div>
+    </section>
+
+    <!-- ════════════════════ CHECK-INS ═══════════════════════ -->
+    <section class="section" id="sec-checkins">
+      <div class="page-header">
+        <div class="page-header-left">
+          <h1>Check-ins</h1>
+          <p>All client weekly check-ins.</p>
+        </div>
+      </div>
+      <div id="all-checkins-list"></div>
+    </section>
+
+    <!-- ════════════════════ MESSAGES ════════════════════════ -->
+    <section class="section" id="sec-messages">
+      <div class="page-header">
+        <div class="page-header-left">
+          <h1>Messages</h1>
+          <p>Chat with your clients.</p>
+        </div>
+      </div>
+
+      <div class="chat-wrap">
+        <!-- Client list -->
+        <div class="chat-sidebar">
+          <div class="chat-sidebar-header">Conversations</div>
+          <div id="chat-clients-list"></div>
+        </div>
+        <!-- Chat area -->
+        <div class="chat-main" id="chat-main">
+          <div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--muted-foreground)">
+            Select a client to start messaging
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ══════ ADD CLIENT MODAL ══════════════════════════════════════ -->
+<div class="modal-overlay" id="add-client-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Add New Client</span>
+      <button class="modal-close" onclick="closeModal('add-client-modal')"><i data-lucide="x" style="width:18px;height:18px"></i></button>
+    </div>
+    <div class="form-group"><label class="form-label">Full Name *</label>
+      <input type="text" class="form-input" id="ac-name" placeholder="e.g. John Smith" /></div>
+    <div class="form-group"><label class="form-label">Email (for client login)</label>
+      <input type="email" class="form-input" id="ac-email" placeholder="client@example.com" /></div>
+    <div class="form-group"><label class="form-label">Phone</label>
+      <input type="tel" class="form-input" id="ac-phone" placeholder="+20 100 000 0000" /></div>
+    <div class="form-group"><label class="form-label">Goal</label>
+      <select class="form-select" id="ac-goal">
+        <option value="bulk">Bulk</option>
+        <option value="cut">Cut</option>
+        <option value="maintain">Maintain</option>
+      </select></div>
+    <div class="form-group"><label class="form-label">Notes</label>
+      <textarea class="form-textarea" id="ac-notes" placeholder="Training background, preferences, etc."></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('add-client-modal')">Cancel</button>
+      <button class="btn btn-primary" id="ac-submit-btn">Add Client</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ ADD PLAN MODAL ════════════════════════════════════════ -->
+<div class="modal-overlay" id="add-plan-modal">
+  <div class="modal-box wide">
+    <div class="modal-header">
+      <span class="modal-title">Add Plan</span>
+      <button class="modal-close" onclick="closeModal('add-plan-modal')"><i data-lucide="x" style="width:18px;height:18px"></i></button>
+    </div>
+    <div class="form-group"><label class="form-label">Plan Type</label>
+      <select class="form-select" id="plan-type">
+        <option value="workout">Workout Plan</option>
+        <option value="nutrition">Nutrition Plan</option>
+        <option value="supplement">Vitamin / Supplement Plan</option>
+      </select></div>
+    <div class="form-group"><label class="form-label">Title</label>
+      <input type="text" class="form-input" id="plan-title" placeholder="e.g. 12-Week Hypertrophy Program" /></div>
+    <div class="form-group"><label class="form-label">Content</label>
+      <textarea class="form-textarea" id="plan-content" style="min-height:140px" placeholder="Enter the plan details…"></textarea></div>
+    <div class="form-group"><label class="form-label">Notes</label>
+      <textarea class="form-textarea" id="plan-notes" placeholder="Additional notes, timing, warnings…"></textarea></div>
+    <div class="form-group">
+      <label class="form-label">Attachments</label>
+      <div id="plan-attachments-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
+      <label class="btn btn-secondary btn-sm" style="cursor:pointer;display:inline-flex">
+        <i data-lucide="paperclip" style="width:13px;height:13px"></i> Attach File
+        <input type="file" id="plan-file-input" style="display:none" multiple />
+      </label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('add-plan-modal')">Cancel</button>
+      <button class="btn btn-primary" id="plan-submit-btn">Create Plan</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ FEEDBACK MODAL ════════════════════════════════════════ -->
+<div class="modal-overlay" id="feedback-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Leave Feedback</span>
+      <button class="modal-close" onclick="closeModal('feedback-modal')"><i data-lucide="x" style="width:18px;height:18px"></i></button>
+    </div>
+    <p id="feedback-week-label" style="color:var(--muted-foreground);font-size:14px;margin-bottom:16px"></p>
+    <div class="form-group"><label class="form-label">Your Feedback</label>
+      <textarea class="form-textarea" id="feedback-text" style="min-height:100px" placeholder="Great progress this week! Keep it up…"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('feedback-modal')">Cancel</button>
+      <button class="btn btn-primary" id="feedback-submit-btn">Save Feedback</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ LIGHTBOX ══════════════════════════════════════════════ -->
+<div class="lightbox" id="lightbox" style="display:none" onclick="document.getElementById('lightbox').style.display='none'">
+  <img id="lightbox-img" src="" alt="" />
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<!-- Scripts -->
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/supabase.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/coach.js"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script>
+lucide.createIcons();
+
+// ─── Guard: must be coach ───────────────────────────────────
+(async () => {
+  const session = getCoachSession();
+  if (!session) {
+    // Check Supabase session
+    const restored = await restoreSession();
+    if (!restored || restored.role !== 'coach') {
+      window.location.href = 'index.html';
+      return;
+    }
+  }
+  initCoachApp();
+})();
+</script>
+</body>
+</html>

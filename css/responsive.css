@@ -1,0 +1,55 @@
+/* ─── Tablet (≤1024px) ───────────────────────────── */
+@media (max-width: 1024px) {
+  :root { --sidebar-width: 200px; }
+  .main-content { padding: 24px 24px; }
+  .two-col { grid-template-columns: 1fr; }
+}
+
+/* ─── Mobile (≤768px) ────────────────────────────── */
+@media (max-width: 768px) {
+  .sidebar {
+    width: 100%; height: auto; position: relative;
+    flex-direction: row; flex-wrap: wrap;
+    border-right: none; border-bottom: 1px solid var(--border-light);
+  }
+
+  .app-layout { flex-direction: column; }
+  .main-content { margin-left: 0; padding: 16px; }
+
+  .sidebar-logo { flex: 0 0 auto; }
+
+  .sidebar-nav {
+    flex-direction: row; flex-wrap: wrap; padding: 8px;
+    width: 100%;
+  }
+
+  .nav-link { padding: 6px 10px; font-size: 12px; }
+
+  .sidebar-footer { padding: 8px; }
+
+  .stat-grid { grid-template-columns: 1fr 1fr; }
+
+  .chat-wrap { height: 500px; }
+  .chat-sidebar { width: 160px; }
+
+  .landing-card { padding: 32px 20px 24px; }
+  .landing-title { font-size: 22px; }
+
+  .two-col-form { grid-template-columns: 1fr; }
+  .goal-grid { grid-template-columns: 1fr; }
+
+  .page-header { flex-direction: column; }
+
+  table { font-size: 12px; }
+  th, td { padding: 10px 12px; }
+
+  .modal-box { padding: 20px; }
+}
+
+/* ─── Small mobile (≤480px) ─────────────────────── */
+@media (max-width: 480px) {
+  .stat-grid { grid-template-columns: 1fr; }
+  .mini-stats { gap: 8px; }
+  .mini-stat { padding: 8px 12px; }
+  .mini-stat-value { font-size: 15px; }
+}

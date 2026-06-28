@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Engine Room</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+</head>
+<body>
+
+<!-- ── Landing background ─────────────────────────────────────── -->
+<div class="landing-bg" id="landing-bg">
+  <div class="landing-glow-a"></div>
+  <div class="landing-glow-b"></div>
+
+  <!-- Main Card -->
+  <div class="landing-card" id="landing-card">
+    <!-- Logo -->
+    <div style="text-align:center;margin-bottom:36px">
+      <div class="landing-logo-btn" id="logo-tap-area">
+        <div class="landing-logo-icon">
+          <i data-lucide="dumbbell" style="width:32px;height:32px;color:#fff;stroke-width:2.4"></i>
+        </div>
+      </div>
+      <p class="landing-eyebrow">Personal Training Platform</p>
+      <h1 class="landing-title">Engine<span>Room</span></h1>
+      <div style="display:flex;justify-content:center;margin-bottom:8px">
+        <div class="coach-badge">
+          <i data-lucide="user" style="width:12px;height:12px"></i>
+          C. Mohamed Mansour
+        </div>
+      </div>
+      <p class="landing-sub">Track. Train. Transform.</p>
+    </div>
+
+    <!-- Sign In button -->
+    <button class="landing-btn-primary" id="open-signin-btn" style="margin-bottom:12px">
+      <i data-lucide="log-in" style="width:18px;height:18px"></i>
+      Sign In
+    </button>
+
+    <!-- Create Account button -->
+    <button class="landing-btn-ghost" id="open-signup-btn">
+      <i data-lucide="user-plus" style="width:16px;height:16px"></i>
+      New here? Create an account
+    </button>
+
+    <p style="margin:28px 0 0;text-align:center;font-size:11px;color:#1e1e1e">
+      © 2025 Engine Room · All rights reserved
+    </p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     Sign-In Modal
+══════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="signin-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Welcome back</span>
+      <button class="modal-close" id="close-signin"><i data-lucide="x" style="width:18px;height:18px"></i></button>
+    </div>
+    <p style="font-size:13px;color:var(--muted-foreground);margin-bottom:20px">Sign in to your Engine Room account.</p>
+
+    <div class="form-group">
+      <label class="landing-label">Email</label>
+      <div class="landing-input-wrap">
+        <input type="email" id="si-email" class="landing-input" placeholder="you@example.com" />
+      </div>
+      <p class="landing-error" id="si-email-err" style="display:none"></p>
+    </div>
+
+    <div class="form-group">
+      <label class="landing-label">Password</label>
+      <div class="landing-input-wrap">
+        <input type="password" id="si-password" class="landing-input has-icon" placeholder="Your password" />
+        <button class="landing-eye-btn" id="si-eye-btn" tabindex="-1" type="button">
+          <i data-lucide="eye" id="si-eye-icon" style="width:16px;height:16px"></i>
+        </button>
+      </div>
+      <p class="landing-error" id="si-pw-err" style="display:none"></p>
+    </div>
+
+    <p class="landing-error" id="si-global-err" style="display:none;text-align:center;margin-bottom:12px"></p>
+
+    <button class="landing-btn-primary" id="si-submit-btn" style="margin-bottom:14px">
+      <span id="si-btn-text">Sign In</span>
+      <span id="si-spinner" style="display:none"><span class="spinner"></span></span>
+    </button>
+
+    <p style="text-align:center;font-size:13px;color:var(--muted-foreground)">
+      Don't have an account?
+      <button id="switch-to-signup" class="link-btn" style="color:#22c55e;font-weight:600">Create one</button>
+    </p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     Sign-Up Modal
+══════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="signup-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Create your account</span>
+      <button class="modal-close" id="close-signup"><i data-lucide="x" style="width:18px;height:18px"></i></button>
+    </div>
+    <p style="font-size:13px;color:var(--muted-foreground);margin-bottom:20px">Join Engine Room to access your personalized coaching program.</p>
+
+    <div class="two-col-form" style="margin-bottom:14px">
+      <div>
+        <label class="landing-label">Full Name *</label>
+        <input type="text" id="su-name" class="landing-input" placeholder="John Smith" />
+        <p class="landing-error" id="su-name-err" style="display:none"></p>
+      </div>
+      <div>
+        <label class="landing-label">Phone *</label>
+        <input type="tel" id="su-phone" class="landing-input" placeholder="+20 100 000 0000" />
+        <p class="landing-error" id="su-phone-err" style="display:none"></p>
+      </div>
+    </div>
+
+    <div style="margin-bottom:14px">
+      <label class="landing-label">Email *</label>
+      <input type="email" id="su-email" class="landing-input" placeholder="you@example.com" />
+      <p class="landing-error" id="su-email-err" style="display:none"></p>
+    </div>
+
+    <div class="two-col-form" style="margin-bottom:14px">
+      <div>
+        <label class="landing-label">Password *</label>
+        <div class="landing-input-wrap">
+          <input type="password" id="su-pw" class="landing-input has-icon" placeholder="Min 6 characters" />
+          <button class="landing-eye-btn" id="su-eye-btn" type="button" tabindex="-1">
+            <i data-lucide="eye" id="su-eye-icon" style="width:16px;height:16px"></i>
+          </button>
+        </div>
+        <p class="landing-error" id="su-pw-err" style="display:none"></p>
+      </div>
+      <div>
+        <label class="landing-label">Confirm Password *</label>
+        <input type="password" id="su-cpw" class="landing-input" placeholder="Repeat password" />
+        <p class="landing-error" id="su-cpw-err" style="display:none"></p>
+      </div>
+    </div>
+
+    <div style="margin-bottom:14px">
+      <label class="landing-label">Your Goal</label>
+      <div class="goal-grid">
+        <button class="goal-option selected-bulk" data-goal="bulk" id="goal-bulk">
+          <span class="goal-label" style="color:#22c55e">Build Muscle</span>
+          <span class="goal-desc">Gain size and strength</span>
+        </button>
+        <button class="goal-option" data-goal="cut" id="goal-cut">
+          <span class="goal-label" style="color:#f59e0b">Lose Fat</span>
+          <span class="goal-desc">Lean out and tone up</span>
+        </button>
+        <button class="goal-option" data-goal="maintain" id="goal-maintain">
+          <span class="goal-label" style="color:#3b82f6">Maintain</span>
+          <span class="goal-desc">Keep current physique</span>
+        </button>
+      </div>
+    </div>
+
+    <div style="margin-bottom:14px">
+      <label class="landing-label">Notes <span style="color:var(--muted-foreground);font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></label>
+      <textarea id="su-notes" class="landing-input" rows="2" placeholder="Training background, injuries, preferences…" style="resize:vertical;border-radius:12px;min-height:64px"></textarea>
+    </div>
+
+    <p class="landing-error" id="su-global-err" style="display:none;text-align:center;margin-bottom:12px"></p>
+
+    <button class="landing-btn-primary" id="su-submit-btn" style="margin-bottom:14px">
+      <span id="su-btn-text">Create Account</span>
+      <span id="su-spinner" style="display:none"><span class="spinner"></span></span>
+    </button>
+
+    <p style="text-align:center;font-size:13px;color:var(--muted-foreground)">
+      Already have an account?
+      <button id="switch-to-signin" class="link-btn" style="color:#22c55e;font-weight:600">Sign in</button>
+    </p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     Coach Access Modal (5-tap secret)
+══════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="coach-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">Coach Access</span>
+      <button class="modal-close" id="close-coach"><i data-lucide="x" style="width:18px;height:18px"></i></button>
+    </div>
+    <div style="display:flex;justify-content:center;margin-bottom:20px">
+      <div style="width:48px;height:48px;background:rgba(59,130,246,0.12);border-radius:12px;display:flex;align-items:center;justify-content:center">
+        <i data-lucide="lock" style="width:22px;height:22px;color:var(--accent)"></i>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="landing-label">Email</label>
+      <input type="email" id="coach-email" class="landing-input" placeholder="coach@engineroom.com" />
+    </div>
+    <div class="form-group">
+      <label class="landing-label">Password</label>
+      <div class="landing-input-wrap">
+        <input type="password" id="coach-pw" class="landing-input has-icon" placeholder="Your password" />
+        <button class="landing-eye-btn" id="coach-eye-btn" type="button" tabindex="-1">
+          <i data-lucide="eye" id="coach-eye-icon" style="width:16px;height:16px"></i>
+        </button>
+      </div>
+    </div>
+    <p class="landing-error" id="coach-err" style="display:none;text-align:center;margin-bottom:12px"></p>
+    <button class="landing-btn-primary" id="coach-submit-btn">
+      <span id="coach-btn-text">Enter Coach Portal</span>
+      <span id="coach-spinner" style="display:none"><span class="spinner"></span></span>
+    </button>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<!-- Scripts -->
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/supabase.js"></script>
+<script src="js/auth.js"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<script>
+lucide.createIcons();
+
+// ─── Modal helpers ───────────────────────────────────────────
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function allClose()     { ['signin-modal','signup-modal','coach-modal'].forEach(closeModal); }
+
+// ─── Sign-in modal ────────────────────────────────────────────
+document.getElementById('open-signin-btn').addEventListener('click', () => { allClose(); openModal('signin-modal'); });
+document.getElementById('close-signin').addEventListener('click', () => closeModal('signin-modal'));
+document.getElementById('switch-to-signup').addEventListener('click', () => { allClose(); openModal('signup-modal'); });
+
+// Eye toggle — sign in
+const siPw = document.getElementById('si-password');
+document.getElementById('si-eye-btn').addEventListener('click', () => {
+  const show = siPw.type === 'password';
+  siPw.type = show ? 'text' : 'password';
+  document.getElementById('si-eye-icon').setAttribute('data-lucide', show ? 'eye-off' : 'eye');
+  lucide.createIcons();
+});
+
+// Sign-in submit
+document.getElementById('si-submit-btn').addEventListener('click', handleSignIn);
+document.getElementById('si-password').addEventListener('keydown', e => { if (e.key === 'Enter') handleSignIn(); });
+
+async function handleSignIn() {
+  const email    = document.getElementById('si-email').value.trim();
+  const password = document.getElementById('si-password').value;
+  const emailErr = document.getElementById('si-email-err');
+  const pwErr    = document.getElementById('si-pw-err');
+  const globalErr= document.getElementById('si-global-err');
+
+  [emailErr, pwErr, globalErr].forEach(el => { el.style.display='none'; el.textContent=''; });
+  document.getElementById('si-email').classList.remove('error');
+  document.getElementById('si-password').classList.remove('error');
+
+  if (!email) { emailErr.textContent='Please enter your email'; emailErr.style.display='block'; document.getElementById('si-email').classList.add('error'); return; }
+  if (!password) { pwErr.textContent='Please enter your password'; pwErr.style.display='block'; document.getElementById('si-password').classList.add('error'); return; }
+
+  const btn  = document.getElementById('si-submit-btn');
+  document.getElementById('si-btn-text').style.display='none';
+  document.getElementById('si-spinner').style.display='inline';
+  btn.disabled = true;
+
+  const result = await signInClient(email, password);
+
+  document.getElementById('si-btn-text').style.display='';
+  document.getElementById('si-spinner').style.display='none';
+  btn.disabled = false;
+
+  if (result.error) {
+    globalErr.textContent = result.error; globalErr.style.display='block';
+    document.getElementById('si-email').classList.add('error');
+    document.getElementById('si-password').classList.add('error');
+  } else {
+    window.location.href = 'client.html';
+  }
+}
+
+// ─── Sign-up modal ────────────────────────────────────────────
+document.getElementById('open-signup-btn').addEventListener('click', () => { allClose(); openModal('signup-modal'); });
+document.getElementById('close-signup').addEventListener('click', () => closeModal('signup-modal'));
+document.getElementById('switch-to-signin').addEventListener('click', () => { allClose(); openModal('signin-modal'); });
+
+// Eye toggle — sign up
+const suPw = document.getElementById('su-pw');
+document.getElementById('su-eye-btn').addEventListener('click', () => {
+  const show = suPw.type === 'password';
+  suPw.type = show ? 'text' : 'password';
+  document.getElementById('su-eye-icon').setAttribute('data-lucide', show ? 'eye-off' : 'eye');
+  lucide.createIcons();
+});
+
+// Goal selector
+let selectedGoal = 'bulk';
+document.querySelectorAll('.goal-option').forEach(btn => {
+  btn.addEventListener('click', () => {
+    selectedGoal = btn.dataset.goal;
+    document.querySelectorAll('.goal-option').forEach(b => {
+      b.className = 'goal-option';
+    });
+    btn.classList.add(`selected-${selectedGoal}`);
+  });
+});
+
+// Sign-up submit
+document.getElementById('su-submit-btn').addEventListener('click', handleSignUp);
+
+async function handleSignUp() {
+  const name    = document.getElementById('su-name').value.trim();
+  const phone   = document.getElementById('su-phone').value.trim();
+  const email   = document.getElementById('su-email').value.trim();
+  const pw      = document.getElementById('su-pw').value;
+  const cpw     = document.getElementById('su-cpw').value;
+  const notes   = document.getElementById('su-notes').value.trim();
+
+  // Clear errors
+  ['su-name-err','su-phone-err','su-email-err','su-pw-err','su-cpw-err','su-global-err']
+    .forEach(id => { const el=document.getElementById(id); el.style.display='none'; el.textContent=''; });
+
+  let valid = true;
+  function fieldErr(errId, msg) {
+    const el = document.getElementById(errId);
+    el.textContent = msg; el.style.display = 'block'; valid = false;
+  }
+
+  if (!name)  fieldErr('su-name-err', 'Full name is required');
+  if (!phone) fieldErr('su-phone-err', 'Phone number is required');
+  if (!email) fieldErr('su-email-err', 'Email is required');
+  else if (!/\S+@\S+\.\S+/.test(email)) fieldErr('su-email-err', 'Enter a valid email');
+  if (!pw)    fieldErr('su-pw-err', 'Password is required');
+  else if (pw.length < 6) fieldErr('su-pw-err', 'Minimum 6 characters');
+  if (pw !== cpw) fieldErr('su-cpw-err', 'Passwords do not match');
+  if (!valid) return;
+
+  const btn = document.getElementById('su-submit-btn');
+  document.getElementById('su-btn-text').style.display='none';
+  document.getElementById('su-spinner').style.display='inline';
+  btn.disabled = true;
+
+  const result = await signUpClient({ email, password: pw, name, phone, goal: selectedGoal, notes });
+
+  document.getElementById('su-btn-text').style.display='';
+  document.getElementById('su-spinner').style.display='none';
+  btn.disabled = false;
+
+  if (result.error) {
+    const el = document.getElementById('su-global-err');
+    el.textContent = result.error; el.style.display='block';
+    if (result.error.toLowerCase().includes('email')) {
+      document.getElementById('su-email-err').textContent = result.error;
+      document.getElementById('su-email-err').style.display = 'block';
+    }
+  } else {
+    window.location.href = 'client.html';
+  }
+}
+
+// ─── Coach access (5-tap secret) ─────────────────────────────
+let tapCount = 0, tapTimer = null;
+document.getElementById('logo-tap-area').addEventListener('click', () => {
+  if (tapTimer) clearTimeout(tapTimer);
+  tapCount++;
+  if (tapCount >= 5) {
+    tapCount = 0;
+    allClose();
+    openModal('coach-modal');
+    lucide.createIcons();
+  } else {
+    tapTimer = setTimeout(() => { tapCount = 0; }, 3000);
+  }
+});
+document.getElementById('close-coach').addEventListener('click', () => closeModal('coach-modal'));
+
+// Eye toggle — coach
+const coachPw = document.getElementById('coach-pw');
+document.getElementById('coach-eye-btn').addEventListener('click', () => {
+  const show = coachPw.type === 'password';
+  coachPw.type = show ? 'text' : 'password';
+  document.getElementById('coach-eye-icon').setAttribute('data-lucide', show ? 'eye-off' : 'eye');
+  lucide.createIcons();
+});
+
+document.getElementById('coach-submit-btn').addEventListener('click', handleCoachLogin);
+document.getElementById('coach-pw').addEventListener('keydown', e => { if (e.key === 'Enter') handleCoachLogin(); });
+
+async function handleCoachLogin() {
+  const email = document.getElementById('coach-email').value.trim();
+  const pw    = document.getElementById('coach-pw').value;
+  const err   = document.getElementById('coach-err');
+  err.style.display='none'; err.textContent='';
+
+  if (!email || !pw) { err.textContent='Email and password required'; err.style.display='block'; return; }
+
+  const btn = document.getElementById('coach-submit-btn');
+  document.getElementById('coach-btn-text').style.display='none';
+  document.getElementById('coach-spinner').style.display='inline';
+  btn.disabled = true;
+
+  const result = await signInCoach(email, pw);
+
+  document.getElementById('coach-btn-text').style.display='';
+  document.getElementById('coach-spinner').style.display='none';
+  btn.disabled = false;
+
+  if (result.error) { err.textContent = result.error; err.style.display='block'; }
+  else { window.location.href = 'coach.html'; }
+}
+
+// Close modal on backdrop click
+['signin-modal','signup-modal','coach-modal'].forEach(id => {
+  document.getElementById(id).addEventListener('click', function(e) {
+    if (e.target === this) closeModal(id);
+  });
+});
+
+// ─── Session check ────────────────────────────────────────────
+// If user already has a session, redirect to the right dashboard
+(async () => {
+  const session = await restoreSession();
+  if (session?.role === 'client') window.location.href = 'client.html';
+  else if (session?.role === 'coach') window.location.href = 'coach.html';
+})();
+</script>
+</body>
+</html>
