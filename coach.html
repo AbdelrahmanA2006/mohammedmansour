@@ -9,6 +9,13 @@
 </head>
 <body>
 
+<!-- Mobile nav drawer toggle (pure CSS — no JS required). Hidden ≥769px. -->
+<input type="checkbox" id="nav-toggle" class="nav-toggle-checkbox" />
+<label for="nav-toggle" class="nav-toggle-label" aria-label="Toggle navigation menu">
+  <i data-lucide="menu"></i>
+</label>
+<label for="nav-toggle" class="nav-backdrop" aria-hidden="true"></label>
+
 <div class="app-layout">
   <!-- ── Sidebar ──────────────────────────────────────────────── -->
   <aside class="sidebar">
@@ -265,6 +272,13 @@
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 <script>
 lucide.createIcons();
+
+// Auto-close the mobile drawer after picking a section — pure convenience
+// addition, doesn't touch/rename any existing function or handler.
+document.getElementById('coach-nav')?.addEventListener('click', () => {
+  const navToggle = document.getElementById('nav-toggle');
+  if (navToggle) navToggle.checked = false;
+});
 
 // ─── Guard: must be coach ───────────────────────────────────
 (async () => {

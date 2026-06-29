@@ -1,55 +1,219 @@
-/* ─── Tablet (≤1024px) ───────────────────────────── */
-@media (max-width: 1024px) {
-  :root { --sidebar-width: 200px; }
-  .main-content { padding: 24px 24px; }
-  .two-col { grid-template-columns: 1fr; }
+/* ════════════════════════════════════════════════════════════════
+   RESPONSIVE LAYER
+   Breakpoints requested: 320 / 480 / 768 / 1024 / 1280 / 1440.
+   Desktop (≥1024px) keeps the exact existing design — fixed sidebar,
+   same spacing, same look. Everything below only adapts LAYOUT
+   (stacking, scroll regions, touch targets), never colors/fonts/anim.
+   ════════════════════════════════════════════════════════════════ */
+
+/* ─── Off-canvas drawer (pure CSS, no JS) ─────────────────────────
+   Hidden on desktop/tablet. Becomes the mobile nav at ≤768px (see
+   NAVIGATION section below). Markup added in client.html/coach.html:
+   a checkbox + two labels (hamburger button + backdrop) right before
+   .app-layout. Uses the checkbox-hack so no existing JS is touched. */
+.nav-toggle-checkbox { display: none; }
+
+.nav-toggle-label {
+  display: none; /* only shown ≤768px, see media query below */
+  position: fixed; top: 14px; left: 14px; z-index: 60;
+  width: 44px; height: 44px; border-radius: 10px;
+  background: #111111; border: 1px solid var(--border-light);
+  align-items: center; justify-content: center;
+  cursor: pointer; color: var(--text);
+}
+.nav-toggle-label svg { width: 20px; height: 20px; }
+
+.nav-backdrop {
+  display: none;
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  z-index: 45; cursor: pointer;
 }
 
-/* ─── Mobile (≤768px) ────────────────────────────── */
+/* ════════════════════════════════════════════════════════════════
+   1440px and up — Large Desktop / Ultra-wide
+   ════════════════════════════════════════════════════════════════ */
+@media (min-width: 1440px) {
+  /* Slightly roomier gutters on very large screens; design unchanged,
+     just breathing room so content doesn't hug the viewport edge. */
+  .main-content { padding-right: clamp(36px, 3vw, 56px); }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   1280px – 1439px — Laptop (upper range)
+   ════════════════════════════════════════════════════════════════ */
+@media (max-width: 1280px) {
+  .chat-wrap { height: 580px; }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   ≤1024px — Tablet
+   Sidebar stays visible (per the explicit Navigation spec: "Tablet:
+   optimize spacing" — not hidden), just narrower and more compact.
+   ════════════════════════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  :root { --sidebar-width: 200px; }
+
+  .main-content { padding: clamp(16px, 3vw, 24px); max-width: none; }
+
+  .two-col { grid-template-columns: 1fr; }
+
+  /* Cards: tablet tier = 2 columns (per spec) instead of organic auto-fit. */
+  .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .sidebar-logo { padding: 18px 14px; }
+  .nav-link { padding: 8px 10px; font-size: 13px; }
+
+  .chat-wrap { height: 540px; }
+  .chat-sidebar { width: 180px; }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   ≤768px — Phones (large + standard)
+   Sidebar becomes a hidden, slide-in drawer triggered by the
+   hamburger button (pure CSS, see top of file).
+   ════════════════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
-  .sidebar {
-    width: 100%; height: auto; position: relative;
-    flex-direction: row; flex-wrap: wrap;
-    border-right: none; border-bottom: 1px solid var(--border-light);
-  }
-
   .app-layout { flex-direction: column; }
-  .main-content { margin-left: 0; padding: 16px; }
 
-  .sidebar-logo { flex: 0 0 auto; }
+  /* Hamburger button + backdrop appear only at this tier. */
+  .nav-toggle-label { display: flex; }
 
-  .sidebar-nav {
-    flex-direction: row; flex-wrap: wrap; padding: 8px;
-    width: 100%;
+  .sidebar {
+    width: min(280px, 84vw);
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    box-shadow: 4px 0 28px rgba(0,0,0,0.45);
+  }
+  /* Checkbox is a sibling of .app-layout — reach the sidebar through it. */
+  .nav-toggle-checkbox:checked ~ .nav-backdrop { display: block; }
+  .nav-toggle-checkbox:checked ~ .app-layout .sidebar { transform: translateX(0); }
+
+  .main-content {
+    margin-left: 0;
+    max-width: 100%;
+    /* top padding clears the fixed hamburger button */
+    padding: clamp(64px, 14vw, 76px) 16px 16px;
   }
 
-  .nav-link { padding: 6px 10px; font-size: 12px; }
+  .sidebar-nav { padding: 12px; gap: 6px; }
+  .nav-link { font-size: 14px; padding: 11px 12px; } /* ≥44px tall, see touch-target rule below */
 
-  .sidebar-footer { padding: 8px; }
+  .stat-grid { grid-template-columns: 1fr; } /* mobile tier = 1 column */
 
-  .stat-grid { grid-template-columns: 1fr 1fr; }
+  .chat-wrap { height: 70vh; min-height: 420px; flex-direction: column; }
+  /* Client/conversation list becomes a horizontal scroll strip above the
+     chat instead of a cramped narrow vertical column. */
+  .chat-sidebar {
+    width: 100%; max-height: 96px;
+    overflow-x: auto; overflow-y: hidden;
+    border-right: none; border-bottom: 1px solid var(--border);
+  }
+  .chat-sidebar-header { display: none; }
+  /* The buttons coach.js renders live inside #chat-clients-list (a plain
+     div), which is .chat-sidebar's actual child — that's the element that
+     needs to become the horizontal flex row, not .chat-sidebar itself
+     (which only has two block-level children: the header + this list). */
+  #chat-clients-list { display: flex; flex-direction: row; height: 100%; }
+  .chat-client-btn {
+    width: auto; min-width: 150px; flex-shrink: 0;
+    border-bottom: none; border-right: 1px solid var(--border);
+    border-left: none; border-top: 3px solid transparent;
+  }
+  .chat-client-btn.active { border-left-color: transparent; border-top-color: var(--accent); }
+  .msg-bubble { max-width: 85%; }
 
-  .chat-wrap { height: 500px; }
-  .chat-sidebar { width: 160px; }
-
-  .landing-card { padding: 32px 20px 24px; }
-  .landing-title { font-size: 22px; }
+  .landing-card { padding: clamp(24px, 7vw, 32px) clamp(16px, 5vw, 20px) clamp(18px, 5vw, 24px); }
+  .landing-title { font-size: clamp(20px, 6.5vw, 22px); }
 
   .two-col-form { grid-template-columns: 1fr; }
   .goal-grid { grid-template-columns: 1fr; }
 
-  .page-header { flex-direction: column; }
+  .page-header { flex-direction: column; align-items: stretch; }
+  .page-header > div:not(.page-header-left) { width: 100%; flex-wrap: wrap; gap: 8px; }
+  .page-header > .btn,
+  .page-header > div:not(.page-header-left) .btn { flex: 1 1 auto; justify-content: center; }
 
+  /* Same 640px floor as the base rule (not a smaller one) — a narrower
+     floor here would make the scrolled-into-view columns even more cramped,
+     the opposite of what we want. */
   table { font-size: 12px; }
   th, td { padding: 10px 12px; }
 
-  .modal-box { padding: 20px; }
+  .modal-box { padding: clamp(16px, 5vw, 20px); }
+  .modal-footer { flex-direction: column; }
+  .modal-footer .btn { width: 100%; justify-content: center; }
+
+  /* Forms: full-width, comfortably spaced, never overlapping (per spec). */
+  .form-group { margin-bottom: 14px; }
+  .landing-btn-primary, .landing-btn-ghost { padding: 13px; }
 }
 
-/* ─── Small mobile (≤480px) ─────────────────────── */
+/* ════════════════════════════════════════════════════════════════
+   ≤480px — Standard/large phones (lower range)
+   ════════════════════════════════════════════════════════════════ */
 @media (max-width: 480px) {
   .stat-grid { grid-template-columns: 1fr; }
   .mini-stats { gap: 8px; }
-  .mini-stat { padding: 8px 12px; }
+  .mini-stat { padding: 8px 12px; min-width: 72px; }
   .mini-stat-value { font-size: 15px; }
+
+  .meta-row { gap: 14px; }
+
+  .sidebar-footer { padding: 10px; }
+
+  .day-pills { gap: 5px; }
+  .day-pill { padding: 6px 10px; font-size: 11px; }
+
+  .photo-thumb, .photo-add-btn { width: 78px; height: 78px; }
+
+  .empty-state { padding: 40px 16px; }
+
+  .search-input { max-width: 100%; }
+
+  /* Toasts: full-width with even side margins instead of hugging the
+     right edge, and never wider than the viewport. */
+  #toast-container { left: 12px; right: 12px; bottom: 16px; align-items: stretch; }
+  .toast { max-width: 100%; min-width: 0; }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   ≤320px — Smallest phones
+   ════════════════════════════════════════════════════════════════ */
+@media (max-width: 320px) {
+  .main-content { padding-left: 12px; padding-right: 12px; }
+  .card, .stat-card { padding: 16px; }
+  .btn { padding: 8px 12px; font-size: 12px; }
+  .landing-card { padding: 22px 14px 18px; }
+  .modal-box { padding: 14px; }
+  .mini-stat { min-width: 64px; padding: 6px 10px; }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Touch targets (mobile/tablet only — desktop density unchanged)
+   Minimum 44×44px tap area per WCAG/Apple/Material guidance.
+   ════════════════════════════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  .nav-link, .sign-out-btn { min-height: 44px; }
+  .btn { min-height: 44px; }
+  .btn-sm { min-height: 38px; } /* compact inline actions (table row buttons) */
+  .modal-close, .form-eye-btn, .landing-eye-btn, .chat-send-btn, .img-picker-btn {
+    min-width: 44px; min-height: 44px;
+  }
+  .day-pill { min-height: 32px; } /* small pill control, intentionally compact */
+  /* .photo-remove / .pending-img-remove are intentionally small corner
+     badges on an already-staged thumbnail — forcing 44px would make them
+     bigger than the photo itself and visually break the design. */
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Reduced motion — accessibility (keeps existing animations for
+   everyone else; only disables for users who've asked the OS to
+   reduce motion).
+   ════════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

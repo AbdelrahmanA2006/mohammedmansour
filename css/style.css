@@ -30,6 +30,24 @@ html, body {
   background: var(--background);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
+  /* Responsive safety net: guarantees zero horizontal scrolling on the page
+     itself. Elements that intentionally scroll (e.g. .table-wrap) keep their
+     own independent overflow-x and are unaffected by this. */
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+/* Responsive safety net: long unbroken strings (long names/emails with no
+   spaces) wrap instead of forcing horizontal overflow. Does not change how
+   normal text wraps at spaces, so no visual change for existing content. */
+body { overflow-wrap: break-word; word-break: break-word; }
+
+/* Every image/canvas/video scales down within its container, never overflows.
+   Elements that already set an explicit width/height (avatars, icons, photo
+   thumbs) are unaffected since those explicit rules take precedence. */
+img, svg, canvas, video {
+  max-width: 100%;
+  height: auto;
 }
 
 /* ─── Scrollbar ───────────────────────────────────────────────── */
@@ -127,8 +145,14 @@ html, body {
 .main-content {
   flex: 1;
   margin-left: var(--sidebar-width);
-  padding: 32px 36px;
+  /* Fluid padding — identical 32/36 at normal widths, eases down on phones. */
+  padding: clamp(16px, 4vw, 32px) clamp(16px, 4vw, 36px);
   min-height: 100vh;
+  /* Ultra-wide monitors: cap how wide the content area can stretch so it
+     doesn't become an unreadably wide single column. Stays anchored next to
+     the sidebar (no margin-inline:auto — that would fight margin-left
+     above); any extra space simply appears past the cap on huge screens. */
+  max-width: calc(1800px + var(--sidebar-width));
 }
 
 /* ─── Page Header ─────────────────────────────────────────────── */
@@ -141,7 +165,11 @@ html, body {
   gap: 12px;
 }
 .page-header-left h1 {
-  font-size: 24px; font-weight: 800; color: var(--text); margin-bottom: 4px;
+  /* clamp(min, preferred, max) — identical 24px at normal/desktop widths
+     (max value unchanged), scales down smoothly only on very narrow phones
+     instead of overflowing or wrapping awkwardly. */
+  font-size: clamp(19px, 5vw, 24px);
+  font-weight: 800; color: var(--text); margin-bottom: 4px;
 }
 .page-header-left p { font-size: 14px; color: var(--muted-foreground); }
 
@@ -171,7 +199,7 @@ html, body {
   display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
 .stat-label { font-size: 12px; color: var(--muted-foreground); margin-bottom: 4px; }
-.stat-value { font-size: 26px; font-weight: 800; color: var(--text); line-height: 1; }
+.stat-value { font-size: clamp(20px, 4vw, 26px); font-weight: 800; color: var(--text); line-height: 1; }
 .stat-sub { font-size: 11px; color: var(--muted-foreground); margin-top: 3px; }
 
 /* ─── Cards ───────────────────────────────────────────────────── */
@@ -194,18 +222,23 @@ html, body {
 .col-span { grid-column: 1 / -1; }
 
 /* ─── Tables ──────────────────────────────────────────────────── */
+/* overflow-x:auto (not "hidden") so on narrow screens the table scrolls
+   horizontally inside its own rounded container instead of being clipped
+   or squished illegibly — satisfies "tables never break layout". */
 .table-wrap {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 12px;
-  overflow: hidden;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
-table { width: 100%; border-collapse: collapse; }
+table { width: 100%; min-width: 640px; border-collapse: collapse; }
 thead tr { border-bottom: 1px solid var(--border); }
 th {
   padding: 12px 16px; text-align: left;
   font-size: 11px; font-weight: 600; color: var(--muted-foreground);
   text-transform: uppercase; letter-spacing: 0.05em;
+  white-space: nowrap; /* short labels stay on one line even when scrolled */
 }
 tbody tr { border-bottom: 1px solid var(--border); }
 tbody tr:last-child { border-bottom: none; }
@@ -285,7 +318,10 @@ td { padding: 14px 16px; }
 
 .modal-box {
   background: #111111; border: 1px solid var(--border);
-  border-radius: 16px; padding: 28px;
+  border-radius: 16px;
+  /* Fluid padding instead of a hard breakpoint jump — same 28px at normal
+     widths, eases down on narrow phones. */
+  padding: clamp(18px, 5vw, 28px);
   width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto;
   transform: scale(0.95) translateY(10px);
   transition: transform 0.2s;
@@ -311,6 +347,7 @@ td { padding: 14px 16px; }
   display: inline-flex; align-items: center;
   font-size: 11px; font-weight: 600;
   padding: 3px 10px; border-radius: 20px;
+  white-space: nowrap; /* pills stay one line even in a narrow table cell */
 }
 .badge-bulk     { background: #22c55e22; color: #22c55e; }
 .badge-cut      { background: #ef444422; color: #ef4444; }
@@ -639,7 +676,9 @@ input[type="range"] {
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   width: 100%; max-width: 420px;
-  padding: 44px 36px 36px;
+  /* Fluid padding — identical 44/36/36 at normal widths, eases down on
+     narrow phones instead of jumping abruptly at a breakpoint. */
+  padding: clamp(28px, 8vw, 44px) clamp(20px, 7vw, 36px) clamp(20px, 7vw, 36px);
   position: relative; z-index: 1;
   animation: cardIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
@@ -673,7 +712,10 @@ input[type="range"] {
   letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 8px;
 }
 .landing-title {
-  font-size: 28px; font-weight: 800; color: var(--text);
+  /* Same 28px at normal widths (max value unchanged) — only scales down on
+     very narrow phones (320–375px) so it never wraps/overflows the card. */
+  font-size: clamp(22px, 7vw, 28px);
+  font-weight: 800; color: var(--text);
   letter-spacing: -0.02em; margin-bottom: 10px; line-height: 1.1;
 }
 .landing-title span { color: #22c55e; }
