@@ -12,12 +12,16 @@ const PLAN_META = {
 };
 
 // ─── Nav ───────────────────────────────────────────────────────────────────
-function showClientSection(name) {
+async function showClientSection(name) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active','active-green'));
   document.getElementById('sec-' + name).classList.add('active');
   const nav = document.querySelector(`[data-section="${name}"]`);
   if (nav) nav.classList.add('active','active-green');
+
+  // The coach may have updated plans/check-ins/messages since this page
+  // loaded — refresh the cache before rendering so it's never stale.
+  try { await loadAllData(); } catch {}
 
   if (name === 'overview')  renderOverview();
   if (name === 'plan')      renderPlan();
@@ -54,7 +58,7 @@ function renderOverview() {
   const plans    = getPlansByClient(clientId);
   const checkins = getCheckinsByClient(clientId);
   const msgs     = getMessageThread(clientId);
-  const unread   = msgs.filter(m => m.senderId === 'coach' && !m.read).length;
+  const unread   = msgs.filter(m => m.senderId === getCoachId() && !m.read).length;
 
   // Check-in due?
   const thisWeek    = getWeekStart();
@@ -439,7 +443,7 @@ function removePhoto(i) {
   renderPhotosGrid();
 }
 
-function handleCheckinSubmit() {
+async function handleCheckinSubmit() {
   const weight = parseFloat(document.getElementById('ci-weight').value);
   if (!weight || weight < 20 || weight > 300) { toast('Please enter a valid weight', 'error'); return; }
 
@@ -448,17 +452,24 @@ function handleCheckinSubmit() {
   const adherence = parseInt(document.getElementById('ci-adherence').value);
   const notes     = document.getElementById('ci-notes').value.trim();
 
+  const btn = document.getElementById('ci-submit-btn');
+  btn.disabled = true;
+
   const checkin = {
-    id: generateId(), clientId,
+    clientId,
     weekDate: getWeekStart(),
     weight, energy, sleep, adherence, notes,
-    photos: checkinPhotos.length ? [...checkinPhotos] : undefined,
-    coachFeedback: '',
-    createdAt: new Date().toISOString(),
+    photos: checkinPhotos.length ? [...checkinPhotos] : [],
   };
-  saveCheckin(checkin);
-  toast('Check-in submitted! 🎉', 'success');
-  renderCheckin();
+
+  try {
+    await saveCheckin(checkin);
+    toast('Check-in submitted! 🎉', 'success');
+    renderCheckin();
+  } catch (err) {
+    btn.disabled = false;
+    toast(err.message || 'Failed to submit check-in', 'error');
+  }
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -662,24 +673,26 @@ function updateClientSendBtn() {
   btn.disabled = !input.value.trim() && !clientPendingImage;
 }
 
-function clientSendMessage() {
+async function clientSendMessage() {
   const input = document.getElementById('client-chat-input');
   const text  = input?.value.trim() || '';
   if (!text && !clientPendingImage) return;
 
   const msg = {
-    id: generateId(),
     senderId: clientId,
-    receiverId: 'coach',
+    receiverId: getCoachId(),
     content: text,
     ...(clientPendingImage ? { attachment: clientPendingImage } : {}),
-    createdAt: new Date().toISOString(),
-    read: false,
   };
-  saveMessage(msg);
-  clientPendingImage = null;
-  input.value = '';
-  renderClientMessages();
+
+  try {
+    await saveMessage(msg);
+    clientPendingImage = null;
+    input.value = '';
+    renderClientMessages();
+  } catch (err) {
+    toast(err.message || 'Failed to send message', 'error');
+  }
 }
 
 // ─── Shared file-to-dataUrl ───────────────────────────────────────────────

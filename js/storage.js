@@ -1,141 +1,287 @@
-// ─── localStorage keys ─────────────────────────────────────────────────────
-const KEYS = {
-  clients:      'cd_clients',
-  plans:        'cd_plans',
-  checkins:     'cd_checkins',
-  messages:     'cd_messages',
-  payments:     'cd_payments',
-  activeClient: 'cd_active_client',
-};
+// ─── Data layer ─────────────────────────────────────────────────────────────
+// All reads (getClients, getPlans, …) are synchronous and read from an
+// in-memory cache. Writes (saveClient, savePlan, …) are async: they hit
+// Supabase first, then update the cache so the UI re-renders with fresh data.
+// loadAllData() populates the cache once at app init.
 
-// ─── Generic helpers ───────────────────────────────────────────────────────
-function lsRead(key) {
-  try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; }
-}
-function lsWrite(key, data) { localStorage.setItem(key, JSON.stringify(data)); }
+const cache = {
+  clients: [],   // client profiles (role = 'client')
+  plans: [],
+  checkins: [],
+  messages: [],
+  payments: [],
+  coachId: null,
+};
 
 function generateId() {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
 
-// ─── Active client ─────────────────────────────────────────────────────────
-function getActiveClientId() { return localStorage.getItem(KEYS.activeClient); }
-function setActiveClientId(id) { localStorage.setItem(KEYS.activeClient, id); }
+// ─── Mappers: snake_case (DB) <-> camelCase (app) ──────────────────────────
+function mapClient(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    phone: row.phone,
+    goal: row.goal,
+    notes: row.notes,
+    isActive: row.is_active,
+    checkinDay: row.checkin_day,
+    createdAt: row.created_at,
+  };
+}
+
+function mapPlan(row) {
+  return {
+    id: row.id,
+    clientId: row.client_id,
+    type: row.type,
+    title: row.title,
+    content: row.content,
+    notes: row.notes ?? '',
+    attachments: row.attachments ?? [],
+    createdAt: row.created_at,
+  };
+}
+
+function mapCheckin(row) {
+  return {
+    id: row.id,
+    clientId: row.client_id,
+    weekDate: row.week_date,
+    weight: row.weight,
+    energy: row.energy,
+    sleep: row.sleep,
+    adherence: row.adherence,
+    notes: row.notes ?? '',
+    photos: row.photos ?? [],
+    coachFeedback: row.coach_feedback ?? '',
+    createdAt: row.created_at,
+  };
+}
+
+function mapMessage(row) {
+  return {
+    id: row.id,
+    senderId: row.sender_id,
+    receiverId: row.receiver_id,
+    content: row.content,
+    attachment: row.attachment ?? undefined,
+    read: row.read,
+    createdAt: row.created_at,
+  };
+}
+
+function mapPayment(row) {
+  return {
+    id: row.id,
+    clientId: row.client_id,
+    amount: row.amount,
+    currency: row.currency,
+    status: row.status,
+    paidDate: row.paid_date,
+    notes: row.notes ?? '',
+    createdAt: row.created_at,
+  };
+}
+
+// ─── Load everything once at app init ──────────────────────────────────────
+async function loadAllData() {
+  const { data: coach } = await supaGetCoachProfile();
+  cache.coachId = coach?.id ?? null;
+
+  const [clientsRes, plansRes, checkinsRes, messagesRes, paymentsRes] = await Promise.all([
+    supaGetAllClientProfiles(),
+    supaGetPlans(),
+    supaGetCheckins(),
+    supaGetMessages(),
+    supaGetPayments(),
+  ]);
+
+  // A transient fetch error must never silently wipe out previously loaded
+  // data — only replace each cache slice when its fetch actually succeeded.
+  if (!clientsRes.error)  cache.clients  = (clientsRes.data  ?? []).map(mapClient);
+  if (!plansRes.error)    cache.plans    = (plansRes.data    ?? []).map(mapPlan);
+  if (!checkinsRes.error) cache.checkins = (checkinsRes.data ?? []).map(mapCheckin);
+  if (!messagesRes.error) cache.messages = (messagesRes.data ?? []).map(mapMessage);
+  if (!paymentsRes.error) cache.payments = (paymentsRes.data ?? []).map(mapPayment);
+
+  const firstError = [clientsRes, plansRes, checkinsRes, messagesRes, paymentsRes]
+    .map(r => r.error).find(Boolean);
+  if (firstError) throw firstError;
+}
+
+function getCoachId() { return cache.coachId; }
 
 // ─── Clients ───────────────────────────────────────────────────────────────
-function getClients() { return lsRead(KEYS.clients); }
+function getClients() { return cache.clients; }
+function getClientById(id) { return cache.clients.find(c => c.id === id); }
 
-function saveClient(client) {
-  const list = getClients();
-  const idx  = list.findIndex(c => c.id === client.id);
-  if (idx >= 0) list[idx] = client; else list.push(client);
-  lsWrite(KEYS.clients, list);
+async function saveClient(client) {
+  const { data, error } = await supaUpdateProfile(client.id, {
+    name: client.name,
+    phone: client.phone,
+    goal: client.goal,
+    notes: client.notes,
+    is_active: client.isActive,
+    checkin_day: client.checkinDay,
+  });
+  if (error) throw error;
+  const mapped = mapClient(data);
+  const idx = cache.clients.findIndex(c => c.id === mapped.id);
+  if (idx >= 0) cache.clients[idx] = mapped; else cache.clients.push(mapped);
+  return mapped;
 }
 
-function deleteClient(id) {
-  lsWrite(KEYS.clients, getClients().filter(c => c.id !== id));
+// Local-only cache write (no DB call) — used right after signup/login when
+// the row already matches what's in the DB.
+function cacheUpsertClient(client) {
+  const idx = cache.clients.findIndex(c => c.id === client.id);
+  if (idx >= 0) cache.clients[idx] = client; else cache.clients.push(client);
 }
 
-function getClientById(id) {
-  return getClients().find(c => c.id === id);
+async function deleteClient(id) {
+  const { error } = await supaDeleteUser(id);
+  if (error) throw new Error(error);
+  cache.clients = cache.clients.filter(c => c.id !== id);
 }
 
 // ─── Plans ─────────────────────────────────────────────────────────────────
-function getPlans() {
-  return lsRead(KEYS.plans).map(p => ({
-    ...p,
-    notes: p.notes ?? '',
-    attachments: p.attachments ?? [],
-  }));
+function getPlans() { return cache.plans; }
+function getPlansByClient(clientId) { return cache.plans.filter(p => p.clientId === clientId); }
+
+async function savePlan(plan) {
+  const { data, error } = await supaInsertPlan({
+    client_id: plan.clientId,
+    type: plan.type,
+    title: plan.title,
+    content: plan.content,
+    notes: plan.notes,
+    attachments: plan.attachments ?? [],
+  });
+  if (error) throw error;
+  const mapped = mapPlan(data);
+  cache.plans.unshift(mapped);
+  return mapped;
 }
 
-function getPlansByClient(clientId) {
-  return getPlans().filter(p => p.clientId === clientId);
-}
-
-function savePlan(plan) {
-  const list = getPlans();
-  const idx  = list.findIndex(p => p.id === plan.id);
-  if (idx >= 0) list[idx] = plan; else list.push(plan);
-  lsWrite(KEYS.plans, list);
-}
-
-function deletePlan(id) {
-  lsWrite(KEYS.plans, getPlans().filter(p => p.id !== id));
+async function deletePlan(id) {
+  const { error } = await supaDeletePlan(id);
+  if (error) throw error;
+  cache.plans = cache.plans.filter(p => p.id !== id);
 }
 
 // ─── Check-ins ─────────────────────────────────────────────────────────────
-function getCheckins() { return lsRead(KEYS.checkins); }
+function getCheckins() { return cache.checkins; }
 
 function getCheckinsByClient(clientId) {
-  return getCheckins()
+  return cache.checkins
     .filter(c => c.clientId === clientId)
     .sort((a, b) => new Date(b.weekDate) - new Date(a.weekDate));
 }
 
-function saveCheckin(checkin) {
-  const list = getCheckins();
-  const idx  = list.findIndex(c => c.id === checkin.id);
-  if (idx >= 0) list[idx] = checkin; else list.push(checkin);
-  lsWrite(KEYS.checkins, list);
+function getCheckinForWeek(clientId, weekDate) {
+  return cache.checkins.find(c => c.clientId === clientId && c.weekDate === weekDate);
 }
 
-function getCheckinForWeek(clientId, weekDate) {
-  return getCheckins().find(c => c.clientId === clientId && c.weekDate === weekDate);
+async function saveCheckin(checkin) {
+  const existing = cache.checkins.find(c => c.id === checkin.id);
+
+  if (existing) {
+    const { data, error } = await supaUpdateCheckin(checkin.id, {
+      coach_feedback: checkin.coachFeedback,
+    });
+    if (error) throw error;
+    const mapped = mapCheckin(data);
+    const idx = cache.checkins.findIndex(c => c.id === mapped.id);
+    cache.checkins[idx] = mapped;
+    return mapped;
+  }
+
+  const { data, error } = await supaInsertCheckin({
+    client_id: checkin.clientId,
+    week_date: checkin.weekDate,
+    weight: checkin.weight,
+    energy: checkin.energy,
+    sleep: checkin.sleep,
+    adherence: checkin.adherence,
+    notes: checkin.notes,
+    photos: checkin.photos ?? [],
+  });
+  if (error) throw error;
+  const mapped = mapCheckin(data);
+  cache.checkins.push(mapped);
+  return mapped;
 }
 
 // ─── Messages ──────────────────────────────────────────────────────────────
-function getMessages() { return lsRead(KEYS.messages); }
+function getMessages() { return cache.messages; }
 
 function getMessageThread(clientId) {
-  return getMessages()
+  const coachId = cache.coachId;
+  return cache.messages
     .filter(m =>
-      (m.senderId === 'coach' && m.receiverId === clientId) ||
-      (m.senderId === clientId && m.receiverId === 'coach')
+      (m.senderId === coachId && m.receiverId === clientId) ||
+      (m.senderId === clientId && m.receiverId === coachId)
     )
     .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 }
 
-function saveMessage(message) {
-  const list = getMessages();
-  list.push(message);
-  lsWrite(KEYS.messages, list);
+async function saveMessage(message) {
+  const { data, error } = await supaInsertMessage({
+    sender_id: message.senderId,
+    receiver_id: message.receiverId,
+    content: message.content,
+    attachment: message.attachment ?? null,
+    read: false,
+  });
+  if (error) throw error;
+  const mapped = mapMessage(data);
+  cache.messages.push(mapped);
+  return mapped;
 }
 
-function markMessagesRead(clientId) {
-  const msgs = getMessages().map(m => {
-    if (m.senderId === clientId && m.receiverId === 'coach') return { ...m, read: true };
-    return m;
-  });
-  lsWrite(KEYS.messages, msgs);
+async function markMessagesRead(clientId) {
+  const coachId = cache.coachId;
+  const { error } = await supaMarkMessagesRead(clientId, coachId);
+  if (error) throw error;
+  cache.messages = cache.messages.map(m =>
+    (m.senderId === clientId && m.receiverId === coachId) ? { ...m, read: true } : m
+  );
 }
 
 function getUnreadCount(clientId) {
-  return getMessages().filter(
-    m => m.senderId === 'coach' && m.receiverId === clientId && !m.read
-  ).length;
+  const coachId = cache.coachId;
+  return cache.messages.filter(m => m.senderId === coachId && m.receiverId === clientId && !m.read).length;
 }
 
 function getClientUnreadCount(clientId) {
-  return getMessages().filter(
-    m => m.senderId === 'coach' && m.receiverId === clientId && !m.read
-  ).length;
+  return getUnreadCount(clientId);
 }
 
 // ─── Payments ──────────────────────────────────────────────────────────────
-function getPayments() { return lsRead(KEYS.payments); }
+function getPayments() { return cache.payments; }
 
 function getPaymentsByClient(clientId) {
-  return getPayments()
+  return cache.payments
     .filter(p => p.clientId === clientId)
     .sort((a, b) => new Date(b.paidDate) - new Date(a.paidDate));
 }
 
-function savePayment(payment) {
-  const list = getPayments();
-  const idx  = list.findIndex(p => p.id === payment.id);
-  if (idx >= 0) list[idx] = payment; else list.push(payment);
-  lsWrite(KEYS.payments, list);
+async function savePayment(payment) {
+  const { data, error } = await supaInsertPayment({
+    client_id: payment.clientId,
+    amount: payment.amount,
+    currency: payment.currency ?? 'USD',
+    status: payment.status ?? 'paid',
+    paid_date: payment.paidDate,
+    notes: payment.notes ?? '',
+  });
+  if (error) throw error;
+  const mapped = mapPayment(data);
+  cache.payments.unshift(mapped);
+  return mapped;
 }
 
 // ─── Utils ─────────────────────────────────────────────────────────────────
@@ -212,7 +358,6 @@ function icon(name, size = 16, style = '') {
   return `<i data-lucide="${name}" style="width:${size}px;height:${size}px;vertical-align:middle;${style}"></i>`;
 }
 
-// Refresh all lucide icons in the DOM
 function refreshIcons() {
   if (window.lucide) lucide.createIcons();
 }

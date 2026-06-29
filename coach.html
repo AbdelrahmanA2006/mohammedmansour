@@ -268,14 +268,16 @@ lucide.createIcons();
 
 // ─── Guard: must be coach ───────────────────────────────────
 (async () => {
-  const session = getCoachSession();
-  if (!session) {
-    // Check Supabase session
-    const restored = await restoreSession();
-    if (!restored || restored.role !== 'coach') {
-      window.location.href = 'index.html';
-      return;
-    }
+  // Always re-verify against the live Supabase session.
+  const restored = await restoreSession();
+  if (!restored || restored.role !== 'coach') {
+    window.location.href = 'index.html';
+    return;
+  }
+  try {
+    await loadAllData();
+  } catch (err) {
+    toast('Failed to load dashboard data. Please refresh.', 'error');
   }
   initCoachApp();
 })();

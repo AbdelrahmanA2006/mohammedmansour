@@ -1,8 +1,62 @@
 // ─── Auth module ───────────────────────────────────────────────────────────
-// Wraps Supabase auth + syncs to localStorage for offline-first reads.
+// Supabase Auth is the ONLY source of truth for who is logged in. The
+// session itself is persisted by the supabase-js client (in its own
+// localStorage key) — that's Supabase's mechanism, not a custom one. We
+// never store credentials, session flags, or "logged in" pointers ourselves.
+//
+// Profiles are created automatically by a DB trigger (handle_new_user) when
+// a row is inserted into auth.users — see supabase-schema.sql. We just wait
+// for it to appear and read it back.
+
+function profileToClient(profile) {
+  return {
+    id:         profile.id,
+    name:       profile.name,
+    email:      profile.email,
+    phone:      profile.phone ?? '',
+    goal:       profile.goal,
+    notes:      profile.notes ?? '',
+    isActive:   profile.is_active,
+    checkinDay: profile.checkin_day ?? 1,
+    createdAt:  profile.created_at,
+  };
+}
+
+// Trigger-created row may lag the signUp response by a beat — poll briefly.
+async function waitForProfile(userId, attempts = 5, delayMs = 400) {
+  for (let i = 0; i < attempts; i++) {
+    const { data, error } = await supaGetProfile(userId);
+    if (!error && data) return data;
+    await new Promise(r => setTimeout(r, delayMs));
+  }
+  return null;
+}
+
+// Turns Supabase's deliberately generic "Invalid login credentials" into a
+// precise message via a read-only existence check. Every other error
+// (unconfirmed email, rate limiting, network, etc.) is passed through
+// honestly instead of being swallowed, so real failures are debuggable.
+async function describeSignInError(email, error) {
+  const msg = (error.message || '').toLowerCase();
+
+  if (msg.includes('invalid login credentials')) {
+    const exists = await supaCheckEmailExists(email);
+    if (exists === true)  return 'Incorrect password.';
+    if (exists === false) return 'Account does not exist.';
+    return 'Account does not exist or password is incorrect.'; // existence check itself failed
+  }
+
+  if (msg.includes('email not confirmed')) {
+    return 'Please confirm your email before signing in. Check your inbox for the confirmation link.';
+  }
+
+  return error.message;
+}
 
 async function signUpClient({ email, password, name, phone, goal, notes }) {
-  const { data, error } = await supaSignUp(email, password);
+  const { data, error } = await supaSignUp(email, password, {
+    name, phone, goal, notes, role: 'client',
+  });
 
   if (error) {
     const msg = error.message.toLowerCase().includes('already registered')
@@ -12,48 +66,19 @@ async function signUpClient({ email, password, name, phone, goal, notes }) {
   }
   if (!data.user) return { error: 'Sign-up failed. Please try again.' };
 
-  // Insert profile row
-  const { error: profileError } = await supaInsertProfile({
-    id: data.user.id,
-    name,
-    email: email.toLowerCase().trim(),
-    phone,
-    goal,
-    notes,
-    role: 'client',
-    is_active: true,
-    checkin_day: 1,
-  });
-
-  if (profileError) {
-    await supaSignOut();
-    return { error: 'Failed to save your profile. Please try again.' };
+  const profile = await waitForProfile(data.user.id);
+  if (!profile) {
+    return { error: 'Account created, but profile setup is still finishing. Please sign in again in a moment.' };
   }
 
-  // Sync to localStorage
-  const client = {
-    id:         data.user.id,
-    name,
-    email:      email.toLowerCase().trim(),
-    phone,
-    goal,
-    notes,
-    isActive:   true,
-    createdAt:  new Date().toISOString(),
-  };
-  saveClient(client);
-  setActiveClientId(client.id);
-
-  return { id: client.id };
+  cacheUpsertClient(profileToClient(profile));
+  return { id: profile.id };
 }
 
 async function signInClient(email, password) {
-  const { data, error } = await supaSignUp(email, password);
+  const { data, error } = await supaSignIn(email, password);
 
-console.log("SIGNUP DATA:", data);
-console.log("SIGNUP ERROR:", error);
-
-  if (error) return { error: 'Incorrect email or password.' };
+  if (error) return { error: await describeSignInError(email, error) };
   if (!data.user) return { error: 'Sign-in failed. Please try again.' };
 
   const { data: profile, error: profileError } = await supaGetProfile(data.user.id);
@@ -64,7 +89,6 @@ console.log("SIGNUP ERROR:", error);
   }
 
   if (profile.role === 'coach') {
-    // Coach should go through coach login, not client login
     await supaSignOut();
     return { error: 'This is a coach account. Use the coach portal.' };
   }
@@ -74,27 +98,14 @@ console.log("SIGNUP ERROR:", error);
     return { error: 'Your account is inactive. Contact your coach.' };
   }
 
-  const client = {
-    id:         data.user.id,
-    name:       profile.name,
-    email:      data.user.email,
-    phone:      profile.phone ?? '',
-    goal:       profile.goal,
-    notes:      profile.notes ?? '',
-    isActive:   profile.is_active,
-    checkinDay: profile.checkin_day ?? 1,
-    createdAt:  profile.created_at,
-  };
-  saveClient(client);
-  setActiveClientId(client.id);
-
-  return { id: client.id };
+  cacheUpsertClient(profileToClient(profile));
+  return { id: profile.id };
 }
 
 async function signInCoach(email, password) {
   const { data, error } = await supaSignIn(email, password);
 
-  if (error) return { error: 'Incorrect email or password.' };
+  if (error) return { error: await describeSignInError(email, error) };
   if (!data.user) return { error: 'Sign-in failed.' };
 
   const { data: profile } = await supaGetProfile(data.user.id);
@@ -103,20 +114,19 @@ async function signInCoach(email, password) {
     return { error: 'No coach account found for this email.' };
   }
 
-  sessionStorage.setItem('cd_coach_session', JSON.stringify({ id: data.user.id, email: data.user.email, name: profile.name }));
   return { ok: true };
 }
 
 async function signOutClient() {
   await supaSignOut();
-  localStorage.removeItem('cd_active_client');
 }
 
 async function signOutCoach() {
   await supaSignOut();
-  sessionStorage.removeItem('cd_coach_session');
 }
 
+// Reads the live Supabase session (not anything we stored ourselves) and
+// resolves the signed-in user's role + profile.
 async function restoreSession() {
   const { data } = await supaGetSession();
   if (!data.session?.user) return null;
@@ -125,30 +135,13 @@ async function restoreSession() {
   if (!profile) return null;
 
   if (profile.role === 'client') {
-    const client = {
-      id:         data.session.user.id,
-      name:       profile.name,
-      email:      data.session.user.email,
-      phone:      profile.phone ?? '',
-      goal:       profile.goal,
-      notes:      profile.notes ?? '',
-      isActive:   profile.is_active,
-      checkinDay: profile.checkin_day ?? 1,
-      createdAt:  profile.created_at,
-    };
-    saveClient(client);
-    setActiveClientId(client.id);
-    return { role: 'client', id: client.id };
+    cacheUpsertClient(profileToClient(profile));
+    return { role: 'client', id: profile.id };
   }
 
   if (profile.role === 'coach') {
-    sessionStorage.setItem('cd_coach_session', JSON.stringify({ id: data.session.user.id, email: data.session.user.email, name: profile.name }));
-    return { role: 'coach' };
+    return { role: 'coach', id: profile.id, name: profile.name, email: profile.email };
   }
 
   return null;
-}
-
-function getCoachSession() {
-  try { return JSON.parse(sessionStorage.getItem('cd_coach_session') || 'null'); } catch { return null; }
 }

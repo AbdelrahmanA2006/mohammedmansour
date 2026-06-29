@@ -15,7 +15,7 @@ const PLAN_META = {
 };
 
 // ─── Navigation ────────────────────────────────────────────────────────────
-function showSection(name) {
+async function showSection(name) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-link').forEach(l => {
     l.classList.remove('active','active-blue');
@@ -24,6 +24,10 @@ function showSection(name) {
   if (sec) sec.classList.add('active');
   const nav = document.querySelector(`[data-section="${name}"]`);
   if (nav) nav.classList.add('active','active-blue');
+
+  // Other coach/client sessions may have written new data since this page
+  // loaded — refresh the cache before rendering so it's never stale.
+  try { await loadAllData(); } catch {}
 
   // Load section data
   if (name === 'overview')  renderOverview();
@@ -61,7 +65,7 @@ function initCoachApp() {
     window.location.href = 'index.html';
   });
 
-  // Add client
+  // Add client (sends a Supabase invite)
   document.getElementById('add-client-btn').addEventListener('click', () => openModal('add-client-modal'));
   document.getElementById('ac-submit-btn').addEventListener('click', handleAddClient);
 
@@ -228,46 +232,61 @@ function renderClients() {
   refreshIcons();
 }
 
-// ─── Add client ───────────────────────────────────────────────────────────
-function handleAddClient() {
+// ─── Add client (sends a Supabase invite email) ────────────────────────────
+async function handleAddClient() {
   const name  = document.getElementById('ac-name').value.trim();
   const email = document.getElementById('ac-email').value.trim();
   const phone = document.getElementById('ac-phone').value.trim();
   const goal  = document.getElementById('ac-goal').value;
   const notes = document.getElementById('ac-notes').value.trim();
 
-  if (!name) { toast('Name is required', 'error'); return; }
+  if (!name)  { toast('Name is required', 'error'); return; }
+  if (!email) { toast('Email is required to send an invite', 'error'); return; }
 
-  const client = {
-    id: generateId(), name, email: email || undefined, phone, goal, notes,
-    isActive: true, createdAt: new Date().toISOString(),
-  };
-  saveClient(client);
+  const btn = document.getElementById('ac-submit-btn');
+  btn.disabled = true;
+
+  const redirectTo = new URL('set-password.html', window.location.href).toString();
+  const result = await supaInviteUser({ email, name, phone, goal, notes, role: 'client', redirectTo });
+
+  btn.disabled = false;
+
+  if (result.error) { toast(result.error, 'error'); return; }
+
   closeModal('add-client-modal');
   document.getElementById('ac-name').value = '';
   document.getElementById('ac-email').value = '';
   document.getElementById('ac-phone').value = '';
   document.getElementById('ac-notes').value = '';
   document.getElementById('ac-goal').value = 'bulk';
+
+  // The DB trigger creates the profile row as soon as the invite is sent.
+  const { data } = await supaGetAllClientProfiles();
+  cache.clients = (data ?? []).map(mapClient);
   renderClients();
-  toast(`${name} added successfully!`, 'success');
+  toast(`Invite sent to ${email}`, 'success');
 }
 
-function handleDeleteClient(id, name) {
+async function handleDeleteClient(id, name) {
   if (!confirm(`Delete ${name}? This cannot be undone.`)) return;
-  deleteClient(id);
-  renderClients();
-  toast(`${name} deleted`, 'info');
+  try {
+    await deleteClient(id);
+    renderClients();
+    toast(`${name} deleted`, 'info');
+  } catch (err) {
+    toast(err.message || 'Failed to delete client', 'error');
+  }
 }
 
 // ══════════════════════════════════════════════════════════════
 // CLIENT DETAIL
 // ══════════════════════════════════════════════════════════════
-function openClientDetail(id) {
+async function openClientDetail(id) {
   currentClientId = id;
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active','active-blue'));
   document.getElementById('sec-client-detail').classList.add('active');
+  try { await loadAllData(); } catch {}
   renderClientDetail(id);
   refreshIcons();
 }
@@ -426,20 +445,29 @@ function switchDetailTab(tab) {
   document.getElementById('tab-checkins-btn').classList.toggle('active-blue', !isPlans);
 }
 
-function toggleClientArchive(id) {
+async function toggleClientArchive(id) {
   const c = getClientById(id);
   if (!c) return;
-  saveClient({ ...c, isActive: !c.isActive });
-  renderClientDetail(id);
-  toast(c.isActive ? 'Client archived' : 'Client reactivated', 'info');
+  const wasActive = c.isActive;
+  try {
+    await saveClient({ ...c, isActive: !wasActive });
+    renderClientDetail(id);
+    toast(wasActive ? 'Client archived' : 'Client reactivated', 'info');
+  } catch (err) {
+    toast(err.message || 'Failed to update client', 'error');
+  }
 }
 
-function setClientCheckinDay(id, day) {
+async function setClientCheckinDay(id, day) {
   const c = getClientById(id);
   if (!c) return;
-  saveClient({ ...c, checkinDay: day });
-  renderClientDetail(id);
-  toast(`Check-in day set to ${DAY_NAMES[day]}`, 'success');
+  try {
+    await saveClient({ ...c, checkinDay: day });
+    renderClientDetail(id);
+    toast(`Check-in day set to ${DAY_NAMES[day]}`, 'success');
+  } catch (err) {
+    toast(err.message || 'Failed to update check-in day', 'error');
+  }
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -493,7 +521,7 @@ function openAddPlan(clientId) {
   openModal('add-plan-modal');
 }
 
-function handleAddPlan() {
+async function handleAddPlan() {
   const type    = document.getElementById('plan-type').value;
   const title   = document.getElementById('plan-title').value.trim();
   const content = document.getElementById('plan-content').value.trim();
@@ -501,14 +529,14 @@ function handleAddPlan() {
 
   if (!title || !content) { toast('Title and content are required', 'error'); return; }
 
-  savePlan({
-    id: generateId(), clientId: currentClientId,
-    type, title, content, notes, attachments: planAttachments,
-    createdAt: new Date().toISOString(),
-  });
-  closeModal('add-plan-modal');
-  renderClientDetail(currentClientId);
-  toast('Plan created!', 'success');
+  try {
+    await savePlan({ clientId: currentClientId, type, title, content, notes, attachments: planAttachments });
+    closeModal('add-plan-modal');
+    renderClientDetail(currentClientId);
+    toast('Plan created!', 'success');
+  } catch (err) {
+    toast(err.message || 'Failed to create plan', 'error');
+  }
 }
 
 async function handlePlanFile(e) {
@@ -620,20 +648,24 @@ function openFeedback(checkinId, weekLabel) {
   openModal('feedback-modal');
 }
 
-function handleFeedback() {
+async function handleFeedback() {
   const text = document.getElementById('feedback-text').value.trim();
   if (!text) { toast('Feedback cannot be empty', 'error'); return; }
 
   const ci = getCheckins().find(c => c.id === feedbackCheckinId);
   if (!ci) return;
 
-  saveCheckin({ ...ci, coachFeedback: text });
-  closeModal('feedback-modal');
+  try {
+    await saveCheckin({ ...ci, coachFeedback: text });
+    closeModal('feedback-modal');
 
-  // Re-render whichever view is active
-  renderAllCheckins();
-  if (currentClientId) renderDetailCheckins(getCheckinsByClient(currentClientId), getClientById(currentClientId));
-  toast('Feedback saved!', 'success');
+    // Re-render whichever view is active
+    renderAllCheckins();
+    if (currentClientId) renderDetailCheckins(getCheckinsByClient(currentClientId), getClientById(currentClientId));
+    toast('Feedback saved!', 'success');
+  } catch (err) {
+    toast(err.message || 'Failed to save feedback', 'error');
+  }
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -663,9 +695,8 @@ function renderMessages() {
   else if (chatActiveClientId) renderChat(chatActiveClientId);
 }
 
-function selectChatClient(clientId) {
+async function selectChatClient(clientId) {
   chatActiveClientId = clientId;
-  markMessagesRead(clientId);
   pendingImage = null;
 
   // Update sidebar active state
@@ -674,6 +705,7 @@ function selectChatClient(clientId) {
   });
 
   renderChat(clientId);
+  try { await markMessagesRead(clientId); } catch {}
 }
 
 function renderChat(clientId) {
@@ -700,7 +732,7 @@ function renderChat(clientId) {
           <p style="margin:0">No messages yet. Say hello!</p>
         </div>
       ` : thread.map(m => {
-        const isCoach = m.senderId === 'coach';
+        const isCoach = m.senderId === getCoachId();
         return `
           <div class="msg ${isCoach ? 'msg-right' : 'msg-left'}">
             <div class="msg-bubble ${isCoach ? 'coach' : 'client'}">
@@ -787,24 +819,26 @@ function updateSendBtn() {
   btn.disabled = !canSend;
 }
 
-function coachSendMessage() {
+async function coachSendMessage() {
   const input  = document.getElementById('coach-chat-input');
   const text   = input?.value.trim() || '';
   if (!text && !pendingImage) return;
 
   const msg = {
-    id: generateId(),
-    senderId: 'coach',
+    senderId: getCoachId(),
     receiverId: chatActiveClientId,
     content: text,
     ...(pendingImage ? { attachment: pendingImage } : {}),
-    createdAt: new Date().toISOString(),
-    read: false,
   };
-  saveMessage(msg);
-  pendingImage = null;
-  input.value = '';
-  renderChat(chatActiveClientId);
+
+  try {
+    await saveMessage(msg);
+    pendingImage = null;
+    input.value = '';
+    renderChat(chatActiveClientId);
+  } catch (err) {
+    toast(err.message || 'Failed to send message', 'error');
+  }
 }
 
 // ─── Lightbox ─────────────────────────────────────────────────────────────

@@ -151,17 +151,19 @@
 lucide.createIcons();
 
 (async () => {
-  // Check for an active client session
-  let clientId = getActiveClientId();
-  if (!clientId) {
-    const restored = await restoreSession();
-    if (!restored || restored.role !== 'client') {
-      window.location.href = 'index.html';
-      return;
-    }
-    clientId = restored.id;
+  // Always re-verify against the live Supabase session — never trust a
+  // stale localStorage pointer alone for access control.
+  const restored = await restoreSession();
+  if (!restored || restored.role !== 'client') {
+    window.location.href = 'index.html';
+    return;
   }
-  initClientApp(clientId);
+  try {
+    await loadAllData();
+  } catch (err) {
+    toast('Failed to load your data. Please refresh.', 'error');
+  }
+  initClientApp(restored.id);
 })();
 </script>
 </body>
